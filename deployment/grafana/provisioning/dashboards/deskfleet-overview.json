@@ -1,0 +1,68 @@
+{
+  "title": "DeskFleet Overview",
+  "uid": "deskfleet-overview",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Tickets Processed / Resolved / Escalated / Refused",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "rate(deskfleet_tickets_processed_total[5m])", "legendFormat": "processed" },
+        { "expr": "rate(deskfleet_tickets_resolved_total[5m])", "legendFormat": "resolved" },
+        { "expr": "rate(deskfleet_tickets_escalated_total[5m])", "legendFormat": "escalated" },
+        { "expr": "rate(deskfleet_tickets_refused_total[5m])", "legendFormat": "refused" }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Ticket Resolution Latency (p50 / p95)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, rate(deskfleet_ticket_latency_seconds_bucket[5m]))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(deskfleet_ticket_latency_seconds_bucket[5m]))",
+          "legendFormat": "p95"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Escalation Rate",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum(deskfleet_tickets_escalated_total) / sum(deskfleet_tickets_processed_total)"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Cumulative Token Cost (USD)",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 8 },
+      "targets": [{ "expr": "sum(deskfleet_cost_usd_total)" }]
+    },
+    {
+      "id": 5,
+      "title": "Tool Calls by Tool + Status",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum by (tool_name, status) (rate(deskfleet_tool_calls_total[5m]))",
+          "legendFormat": "{{tool_name}} - {{status}}"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+version: "3.9"
+
+services:
+  mock-api:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
+    command: ["uvicorn", "mock_api.main:app", "--host", "0.0.0.0", "--port", "9000"]
+    ports:
+      - "9000:9000"
+    networks:
+      - deskfleet
+
+  api:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    environment:
+      LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai/}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gemini-2.0-flash}
+      LANGCHAIN_TRACING_V2: ${LANGCHAIN_TRACING_V2:-false}
+      LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY:-}
+      LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT:-deskfleet}
+      MOCK_API_BASE_URL: http://mock-api:9000
+      DATABASE_PATH: /data/deskfleet.db
+    volumes:
+      - deskfleet-db:/data
+    depends_on:
+      - mock-api
+    networks:
+      - deskfleet
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
+    command: ["streamlit", "run", "frontend/streamlit_app.py", "--server.address=0.0.0.0", "--server.port=8501"]
+    ports:
+      - "8501:8501"
+    environment:
+      API_BASE_URL: http://api:8000
+    depends_on:
+      - api
+    networks:
+      - deskfleet
+
+  prometheus:
+    image: prom/prometheus:v2.55.0
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - api
+    networks:
+      - deskfleet
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - deskfleet
+
+volumes:
+  deskfleet-db:
+  grafana-data:
+
+networks:
+  deskfleet:
+    driver: bridge
